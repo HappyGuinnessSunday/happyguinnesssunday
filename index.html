@@ -152,6 +152,38 @@
             filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45));
             cursor: pointer;
         }
+
+        /* ---------- Ireland coming soon ---------- */
+        .ireland-marker { background: transparent; border: none; }
+        .ireland-pulse {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+        .ireland-flag { font-size: 36px; line-height: 1; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5)); }
+        .ireland-tag {
+            margin-top: 4px;
+            background: #169B62;
+            color: white;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+            letter-spacing: 0.5px;
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 2px 6px rgba(22,155,98,0.4); }
+            50% { box-shadow: 0 2px 18px rgba(22,155,98,0.9); }
+        }
     </style>
 </head>
 <body>
@@ -362,6 +394,43 @@
             map.flyTo([38.5, -96], 3, { duration: 1.2 });
             setActiveButton('ALL');
         });
+
+        // ---------------- Ireland Coming Soon marker ----------------
+        const irelandIcon = L.divIcon({
+            className: 'ireland-marker',
+            html: '<div class="ireland-pulse">' +
+                  '<div class="ireland-flag">🇮🇪</div>' +
+                  '<div class="ireland-tag">COMING SOON</div>' +
+                  '</div>',
+            iconSize: [100, 60],
+            iconAnchor: [50, 30],
+            popupAnchor: [0, -35]
+        });
+
+        const irelandPopupHTML =
+            '<div class="popup-content">' +
+            '<div class="popup-title">Ireland 🇮🇪</div>' +
+            '<div class="popup-info">🍺 The home of Guinness</div>' +
+            '<div class="popup-info" style="color:#169B62;font-weight:700;margin-top:6px;">Coming Soon — Follow along!</div>' +
+            '</div>';
+
+        L.marker([53.3498, -8.2439], { icon: irelandIcon })
+            .bindPopup(irelandPopupHTML)
+            .addTo(map);
+
+        // Ireland button in city bar
+        const irelandBtn = document.createElement('button');
+        irelandBtn.className = 'city-btn';
+        irelandBtn.dataset.region = 'IRELAND';
+        irelandBtn.style.background = '#169B62';
+        irelandBtn.style.borderColor = '#169B62';
+        irelandBtn.style.color = 'white';
+        irelandBtn.innerHTML = '🇮🇪 Ireland <span class="cnt">soon</span>';
+        irelandBtn.addEventListener('click', () => {
+            map.flyTo([53.3498, -8.2439], 7, { duration: 2.0 });
+            setActiveButton('IRELAND');
+        });
+        cityBar.appendChild(irelandBtn);
 
         function setActiveButton(regionName) {
             cityBar.querySelectorAll('.city-btn').forEach(b => {
