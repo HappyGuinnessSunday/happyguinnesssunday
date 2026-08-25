@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Happy Guinness Sunday 🍺</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0d0d; display: flex; flex-direction: column; }
+        .banner { background: #0f0d0d; color: #F5EBD8; text-align: center; padding: 14px 10px 10px; flex-shrink: 0; }
+        .banner h1 { font-family: Georgia, serif; font-size: 22px; letter-spacing: 0.5px; }
+        .banner .sub { font-size: 12px; color: #D4AF37; margin-top: 3px; font-weight: 600; }
+        #map { flex: 1; width: 100%; z-index: 1; }
+        .city-bar { background: #0f0d0d; padding: 10px 8px calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 6px; overflow-x: auto; flex-shrink: 0; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .city-bar::-webkit-scrollbar { display: none; }
+        .city-btn { flex-shrink: 0; background: #1f1c1c; color: #F5EBD8; border: 1.5px solid #3a3535; border-radius: 20px; padding: 9px 15px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        .city-btn.active { background: #D4AF37; color: #0f0d0d; border-color: #D4AF37; }
+        .city-btn .cnt { font-size: 11px; opacity: 0.75; margin-left: 3px; }
+        .popup-content { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-width: 200px; text-align: center; }
+        .popup-title { font-weight: 800; font-size: 16px; color: #1a1a1a; margin-bottom: 5px; }
+        .popup-info { font-size: 12px; color: #666; margin: 3px 0; }
+        .popup-link { display: block; margin-top: 10px; padding: 12px 16px; background: #0f0d0d; color: #F5EBD8 !important; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 700; }
+        .leaflet-popup-content-wrapper { border-radius: 12px; }
+        .city-cluster { background: transparent; border: none; }
+        .city-cluster .bubble { display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+        .city-cluster .count { width: 48px; height: 48px; background: #0f0d0d; border: 3px solid #F5EBD8; border-radius: 50%; box-shadow: 0 3px 10px rgba(0,0,0,0.45); color: #F5EBD8; font-weight: 800; font-size: 17px; display: flex; align-items: center; justify-content: center; }
+        .city-cluster .label { margin-top: 3px; background: rgba(15,13,13,0.9); border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 700; color: #F5EBD8; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .pint-marker { background: transparent; border: none; }
+        .pint-marker svg { filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45)); cursor: pointer; }
+        .ireland-marker { background: transparent; border: none; }
+        .ireland-pulse { display: flex; flex-direction: column; align-items: center; cursor: pointer; animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-6px); } }
+        .ireland-flag { font-size: 36px; line-height: 1; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5)); }
+        .ireland-tag { margin-top: 4px; background: #169B62; color: white; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 10px; white-space: nowrap; letter-spacing: 0.5px; animation: pulse-glow 2s ease-in-out infinite; }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 2px 6px rgba(22,155,98,0.4); } 50% { box-shadow: 0 2px 18px rgba(22,155,98,0.9); } }
+    </style>
+</head>
+<body>
+    <div class="banner">
+        <h1>HAPPY GUINNESS SUNDAY</h1>
+        <div class="sub">59 PUBS &amp; COUNTING · IRELAND NEXT 🇮🇪</div>
+    </div>
+    <div id="map"></div>
+    <div class="city-bar" id="cityBar">
+        <button class="city-btn active" data-region="ALL">🌎 All</button>
+    </div>
+    <script>
+        const bars = [
+            {name:"The Irish Bank",city:"San Francisco",country:"United States",lat:37.7903,lng:-122.4046,url:"https://www.tiktok.com/@happyguinnesssunday/video/7653901650813406477"},
+            {name:"Landmark Tavern",city:"New York City",country:"United States",lat:40.7633,lng:-73.9965,url:"https://www.tiktok.com/@happyguinnesssunday/video/7529236438483864846"},
+            {name:"The Irish American",city:"New York City",country:"United States",lat:40.71,lng:-74.0087,url:"https://www.tiktok.com/@happyguinnesssunday/video/7530786526037282103"},
+            {name:"The Whale",city:"Greenville",country:"United States",lat:34.84,lng:-82.4,url:"https://www.tiktok.com/@happyguinnesssunday/video/7531234513297378574"},
+            {name:"Connolly's Irish Pub",city:"Greenville",country:"United States",lat:34.8484,lng:-82.3977,url:"https://www.tiktok.com/@happyguinnesssunday/video/7531977397562903821"},
+            {name:"Nancy Whiskey Pub",city:"New York City",country:"United States",lat:40.7205,lng:-74.005,url:"https://www.tiktok.com/@happyguinnesssunday/video/7534528913104489742"},
+            {name:"The Parrott Lounge",city:"Fort Lauderdale",country:"United States",lat:26.1388,lng:-80.1042,url:"https://www.tiktok.com/@happyguinnesssunday/video/7537125867164585271"},
+            {name:"American Social Bar",city:"Fort Lauderdale",country:"United States",lat:26.1191,lng:-80.1352,url:"https://www.tiktok.com/@happyguinnesssunday/video/7539657081784192311"},
+            {name:"O'Connor's Public House",city:"Rochester Hills",country:"United States",lat:42.6811,lng:-83.1337,url:"https://www.tiktok.com/@happyguinnesssunday/video/7542211529580580151"},
+            {name:"Kubel's",city:"Barnegat Light",country:"United States",lat:39.7535,lng:-74.1049,url:"https://www.tiktok.com/@happyguinnesssunday/video/7544848747797204238"},
+            {name:"Original Fat Cats",city:"Fort Lauderdale",country:"United States",lat:26.1205,lng:-80.1464,url:"https://www.tiktok.com/@happyguinnesssunday/video/7547443878194908430"},
+            {name:"Waxy's Irish Pub",city:"Fort Lauderdale",country:"United States",lat:26.1006,lng:-80.132,url:"https://www.tiktok.com/@happyguinnesssunday/video/7550085138856693006"},
+            {name:"The Auld Dubliner",city:"Miami",country:"United States",lat:25.7745,lng:-80.1956,url:"https://www.tiktok.com/@happyguinnesssunday/video/7552649125318135095"},
+            {name:"Bull McCabe's",city:"Durham",country:"United States",lat:35.9961,lng:-78.904,url:"https://www.tiktok.com/@happyguinnesssunday/video/7555122961838099767"},
+            {name:"The Galway Shawl",city:"Fort Lauderdale",country:"United States",lat:26.1893,lng:-80.1046,url:"https://www.tiktok.com/@happyguinnesssunday/video/7557873490024598797"},
+            {name:"The Field Irish Pub",city:"Dania Beach",country:"United States",lat:26.0628,lng:-80.187,url:"https://www.tiktok.com/@happyguinnesssunday/video/7560502486872706318"},
+            {name:"Brendan's Sports Pub",city:"Fort Lauderdale",country:"United States",lat:26.2227,lng:-80.1052,url:"https://www.tiktok.com/@happyguinnesssunday/video/7563033383044009271"},
+            {name:"Kelly's Pub",city:"Fort Lauderdale",country:"United States",lat:26.1654,lng:-80.1132,url:"https://www.tiktok.com/@happyguinnesssunday/video/7568291656810646839"},
+            {name:"Rickey's Restaurant and Sports Bar",city:"Hollywood",country:"United States",lat:26.0113,lng:-80.1899,url:"https://www.tiktok.com/@happyguinnesssunday/video/7570912357422075149"},
+            {name:"Cafe Amrita",city:"New York City",country:"United States",lat:40.801,lng:-73.9588,url:"https://www.tiktok.com/@happyguinnesssunday/video/7573406861228117303"},
+            {name:"The Tam",city:"Boston",country:"United States",lat:42.3516,lng:-71.0649,url:"https://www.tiktok.com/@happyguinnesssunday/video/7575951643372489998"},
+            {name:"Harrington's Bar and Grill",city:"San Francisco",country:"United States",lat:37.7941,lng:-122.3989,url:"https://www.tiktok.com/@happyguinnesssunday/video/7578600135366561037"},
+            {name:"Pete's Tavern",city:"New York City",country:"United States",lat:40.736,lng:-73.987,url:"https://www.tiktok.com/@happyguinnesssunday/video/7583733479955778829"},
+            {name:"The Dead Rabbit",city:"New York City",country:"United States",lat:40.7032,lng:-74.0116,url:"https://www.tiktok.com/@happyguinnesssunday/video/7618305081250680077"},
+            {name:"Tom and Jerry's",city:"New York City",country:"United States",lat:40.7258,lng:-73.9934,url:"https://www.tiktok.com/@happyguinnesssunday/video/7586363987315510542"},
+            {name:"The Spring Lounge",city:"New York City",country:"United States",lat:40.722,lng:-73.996,url:"https://www.tiktok.com/@happyguinnesssunday/video/7588951932736179511"},
+            {name:"The Royal Exchange Restaurant",city:"San Francisco",country:"United States",lat:37.794,lng:-122.3995,url:"https://www.tiktok.com/@happyguinnesssunday/video/7591558455303949623"},
+            {name:"Hennessy Tavern",city:"Las Vegas",country:"United States",lat:36.1697,lng:-115.1415,url:"https://www.tiktok.com/@happyguinnesssunday/video/7594212709491641655"},
+            {name:"The Wheeltapper Pub",city:"New York City",country:"United States",lat:40.7523,lng:-73.974,url:"https://www.tiktok.com/@happyguinnesssunday/video/7596761111966289207"},
+            {name:"Broome Street Bar",city:"New York City",country:"United States",lat:40.724,lng:-74.0028,url:"https://www.tiktok.com/@happyguinnesssunday/video/7599372122384911646"},
+            {name:"The Crafty Irishman at Victory",city:"Dallas",country:"United States",lat:32.7885,lng:-96.8105,url:"https://www.tiktok.com/@happyguinnesssunday/video/7601650672513109303"},
+            {name:"The Playwright Irish Pub",city:"Dallas",country:"United States",lat:32.7933,lng:-96.7946,url:"https://www.tiktok.com/@happyguinnesssunday/video/7604523588233760014"},
+            {name:"Harwood Arms",city:"Dallas",country:"United States",lat:32.7935,lng:-96.8048,url:"https://www.tiktok.com/@happyguinnesssunday/video/7607134586220399886"},
+            {name:"Billy Jack's Shack",city:"Lauderdale-By-The-Sea",country:"United States",lat:26.1912,lng:-80.097,url:"https://www.tiktok.com/@happyguinnesssunday/video/7609701925696572686"},
+            {name:"P.J. Clarke's on The Hudson",city:"New York City",country:"United States",lat:40.7138,lng:-74.0152,url:"https://www.tiktok.com/@happyguinnesssunday/video/7612302143420140813"},
+            {name:"Patriot House Pub",city:"San Francisco",country:"United States",lat:37.7951,lng:-122.3988,url:"https://www.tiktok.com/@happyguinnesssunday/video/7614901105478208781"},
+            {name:"Maggie's Place",city:"New York City",country:"United States",lat:40.7562,lng:-73.9782,url:"https://www.tiktok.com/@happyguinnesssunday/video/7617206087938346254"},
+            {name:"Connolly's Pub Restaurant",city:"New York City",country:"United States",lat:40.7573,lng:-73.9839,url:"https://www.tiktok.com/@happyguinnesssunday/video/7617561520687336717"},
+            {name:"O'Donoghue's",city:"New York City",country:"United States",lat:40.7565,lng:-73.9845,url:"https://www.tiktok.com/@happyguinnesssunday/video/7620102619222134029"},
+            {name:"Ryan Maguire's bar",city:"New York City",country:"United States",lat:40.7031,lng:-74.011,url:"https://www.tiktok.com/@happyguinnesssunday/video/7622731070559030541"},
+            {name:"The Ear Inn",city:"New York City",country:"United States",lat:40.7261,lng:-74.0094,url:"https://www.tiktok.com/@happyguinnesssunday/video/7624911875947515150"},
+            {name:"Jack Doyles Pub",city:"New York City",country:"United States",lat:40.7516,lng:-73.9917,url:"https://www.tiktok.com/@happyguinnesssunday/video/7627899751270239502"},
+            {name:"Connor's Goat",city:"New York City",country:"United States",lat:40.7427,lng:-73.9213,url:"https://www.tiktok.com/@happyguinnesssunday/video/7630528713116880141"},
+            {name:"Donnybrook",city:"New York City",country:"United States",lat:40.7208,lng:-73.9852,url:"https://www.tiktok.com/@happyguinnesssunday/video/7633164697402903821"},
+            {name:"Swift Hibernian Lounge",city:"New York City",country:"United States",lat:40.7268,lng:-73.9922,url:"https://www.tiktok.com/@happyguinnesssunday/video/7635703912657390862"},
+            {name:"Keane's Tavern",city:"Jacksonville",country:"United States",lat:30.3255,lng:-81.6548,url:"https://www.tiktok.com/@happyguinnesssunday/video/7638302912489196814"},
+            {name:"The Black Rose",city:"Boston",country:"United States",lat:42.3592,lng:-71.0543,url:"https://www.tiktok.com/@happyguinnesssunday/video/7640900852785433869"},
+            {name:"Guinness Open Gate Brewery",city:"Halethorpe",country:"United States",lat:39.2223,lng:-76.674,url:"https://www.tiktok.com/@happyguinnesssunday/video/7643574498712718605"},
+            {name:"Galway Bay Irish Restaurant",city:"Annapolis",country:"United States",lat:38.9789,lng:-76.488,url:"https://www.tiktok.com/@happyguinnesssunday/video/7646081882685246734"},
+            {name:"J.J. Donovan's Tavern",city:"Boston",country:"United States",lat:42.36,lng:-71.0552,url:"https://www.tiktok.com/@happyguinnesssunday/video/7648697835071851789"},
+            {name:"The Briny Pub",city:"Pompano Beach",country:"United States",lat:26.2343,lng:-80.0911,url:"https://www.tiktok.com/@happyguinnesssunday/video/7651312353954352397"},
+            {name:"O'Neils Irish Pub",city:"San Mateo",country:"United States",lat:37.567,lng:-122.3235,url:"https://www.tiktok.com/@happyguinnesssunday/video/7656593574259150094"},
+            {name:"Monk McGinns",city:"New York City",country:"United States",lat:40.7143,lng:-74.0101,url:"https://www.tiktok.com/@happyguinnesssunday/video/7661829184678825229"},
+            {name:"Puffy's Tavern",city:"New York City",country:"United States",lat:40.7188,lng:-74.0093,url:"https://www.tiktok.com/@happyguinnesssunday/video/7664337936778939662"},
+            {name:"Laser Wolf",city:"Fort Lauderdale",country:"United States",lat:26.136,lng:-80.1415,url:"https://www.tiktok.com/@happyguinnesssunday/video/7666944029594111246"},
+            {name:"Fiddlers Green",city:"Millbrae",country:"United States",lat:37.6,lng:-122.3871,url:"https://www.tiktok.com/@happyguinnesssunday/video/7669554128032386318"},
+            {name:"The Riverside Market Cafe",city:"Fort Lauderdale",country:"United States",lat:26.1132,lng:-80.1584,url:"https://www.tiktok.com/@happyguinnesssunday/video/7672033613998804237"},
+            {name:"Duggan's Irish Pub",city:"Royal Oak",country:"United States",lat:42.4895,lng:-83.1446,url:"https://www.tiktok.com/@happyguinnesssunday/video/7674249464592239886"},
+            {name:"Patrick Doud's Irish Pub",city:"Mackinac Island",country:"United States",lat:45.8492,lng:-84.6188,url:"https://www.tiktok.com/@happyguinnesssunday/video/7677228506937380110"}
+        ];
+
+        const regionOf = (bar) => {
+            const southFlorida = ["Fort Lauderdale","Miami","Hollywood","Dania Beach","Pompano Beach","Lauderdale-By-The-Sea"];
+            const bayArea = ["San Francisco","San Mateo","Millbrae"];
+            const dcArea = ["Halethorpe","Annapolis"];
+            const michigan = ["Rochester Hills","Royal Oak","Mackinac Island"];
+            if (southFlorida.includes(bar.city)) return "South Florida";
+            if (bayArea.includes(bar.city)) return "SF Bay Area";
+            if (michigan.includes(bar.city)) return "Michigan";
+            if (bar.city === "New York City") return "New York City";
+            if (bar.city === "Boston") return "Boston";
+            if (bar.city === "Dallas") return "Dallas";
+            if (dcArea.includes(bar.city)) return "Baltimore / Annapolis";
+            return bar.city;
+        };
+
+        const regions = {};
+        bars.forEach(bar => {
+            const r = regionOf(bar);
+            if (!regions[r]) regions[r] = [];
+            regions[r].push(bar);
+        });
+
+        const map = L.map('map', {zoomControl: false}).setView([38.5, -96], 3);
+        L.control.zoom({position: 'topright'}).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '&copy; OpenStreetMap contributors', maxZoom: 19}).addTo(map);
+
+        const guinnessSVG =
+            '<svg width="18" height="28" viewBox="0 0 26 40" xmlns="http://www.w3.org/2000/svg">' +
+            '<path d="M3 1 L23 1 L22.4 6 C22.2 8.5 22.8 10.5 23.2 13 C23.8 17 22.5 21 20.5 24 L19.2 35 C19.05 37 17.5 38.5 15.5 38.5 L10.5 38.5 C8.5 38.5 6.95 37 6.8 35 L5.5 24 C3.5 21 2.2 17 2.8 13 C3.2 10.5 3.8 8.5 3.6 6 Z" fill="%23f0f0f0" stroke="%23444" stroke-width="0.8"/>' +
+            '<path d="M3.35 2.5 L22.65 2.5 L22.4 6 C22.28 7.5 22.42 8.8 22.65 10 L3.35 10 C3.58 8.8 3.72 7.5 3.6 6 Z" fill="%23FFFFFF" stroke="none"/>' +
+            '<path d="M3.35 10 L22.65 10 C23.4 14 22.3 18.5 20.5 21.5 L19.3 33 C19.15 35 17.8 36.5 15.8 36.5 L10.2 36.5 C8.2 36.5 6.85 35 6.7 33 L5.5 21.5 C3.7 18.5 2.6 14 3.35 10 Z" fill="%230f0d0d"/>' +
+            '<path d="M6 12 C5.6 15 6.3 18 7.4 20.5 L8.2 30 C8.3 31.5 8.5 32.5 8.8 33.5 L7.8 33.5 C7.3 32.5 7.05 31.5 6.95 30 L6.1 21 C4.9 18.3 4.4 14.8 5 12 Z" fill="%23ffffff" opacity="0.18"/>' +
+            '<text x="13" y="24" text-anchor="middle" font-family="Georgia, serif" font-size="11" font-weight="bold" fill="%23F5EBD8">G</text>' +
+            '</svg>';
+
+        const clusterLayer = L.layerGroup();
+        const pintLayer = L.layerGroup();
+
+        bars.forEach(bar => {
+            const icon = L.divIcon({className:'pint-marker', html:guinnessSVG, iconSize:[18,28], iconAnchor:[9,26], popupAnchor:[0,-28]});
+            const popupHTML = '<div class="popup-content"><div class="popup-title">' + bar.name + '</div><div class="popup-info">📍 ' + bar.city + '</div><a class="popup-link" href="' + bar.url + '" target="_blank">🎬 Watch on TikTok</a></div>';
+            L.marker([bar.lat, bar.lng], {icon}).bindPopup(popupHTML).addTo(pintLayer);
+        });
+
+        Object.keys(regions).forEach(regionName => {
+            const group = regions[regionName];
+            const avgLat = group.reduce((s,b) => s+b.lat, 0) / group.length;
+            const avgLng = group.reduce((s,b) => s+b.lng, 0) / group.length;
+            const icon = L.divIcon({
+                className: 'city-cluster',
+                html: '<div class="bubble"><div class="count">' + group.length + '</div><div class="label">' + regionName + '</div></div>',
+                iconSize: [90,68], iconAnchor: [45,34]
+            });
+            const marker = L.marker([avgLat, avgLng], {icon}).addTo(clusterLayer);
+            marker.on('click', () => flyToRegion(regionName));
+        });
+
+        const SWITCH_ZOOM = 9;
+        function updateLayers() {
+            const z = map.getZoom();
+            if (z >= SWITCH_ZOOM) {
+                if (map.hasLayer(clusterLayer)) map.removeLayer(clusterLayer);
+                if (!map.hasLayer(pintLayer)) map.addLayer(pintLayer);
+            } else {
+                if (map.hasLayer(pintLayer)) map.removeLayer(pintLayer);
+                if (!map.hasLayer(clusterLayer)) map.addLayer(clusterLayer);
+            }
+        }
+        map.on('zoomend', updateLayers);
+        updateLayers();
+
+        function flyToRegion(regionName) {
+            const group = regions[regionName];
+            if (!group) return;
+            if (group.length === 1) {
+                map.flyTo([group[0].lat, group[0].lng], 15, {duration:1.2});
+            } else {
+                const bounds = L.latLngBounds(group.map(b => [b.lat, b.lng]));
+                map.flyToBounds(bounds, {padding:[50,50], maxZoom:15, duration:1.2});
+            }
+            setActiveButton(regionName);
+        }
+
+        const cityBar = document.getElementById('cityBar');
+        const sortedRegions = Object.keys(regions).sort((a,b) => regions[b].length - regions[a].length);
+        sortedRegions.forEach(regionName => {
+            const btn = document.createElement('button');
+            btn.className = 'city-btn';
+            btn.dataset.region = regionName;
+            btn.innerHTML = regionName + '<span class="cnt">' + regions[regionName].length + '</span>';
+            btn.addEventListener('click', () => flyToRegion(regionName));
+            cityBar.appendChild(btn);
+        });
+
+        cityBar.querySelector('[data-region="ALL"]').addEventListener('click', () => {
+            map.flyTo([38.5, -96], 3, {duration:1.2});
+            setActiveButton('ALL');
+        });
+
+        // Ireland Coming Soon
+        const irelandIcon = L.divIcon({
+            className: 'ireland-marker',
+            html: '<div class="ireland-pulse"><div class="ireland-flag">🇮🇪</div><div class="ireland-tag">COMING SOON</div></div>',
+            iconSize: [100,60], iconAnchor: [50,30], popupAnchor: [0,-35]
+        });
+        const irelandPopup = '<div class="popup-content"><div class="popup-title">Ireland 🇮🇪</div><div class="popup-info">🍺 The home of Guinness</div><div class="popup-info" style="color:#169B62;font-weight:700;margin-top:6px;">Coming Soon — Follow along!</div></div>';
+        L.marker([53.3498, -8.2439], {icon: irelandIcon}).bindPopup(irelandPopup).addTo(map);
+
+        const irelandBtn = document.createElement('button');
+        irelandBtn.className = 'city-btn';
+        irelandBtn.dataset.region = 'IRELAND';
+        irelandBtn.style.cssText = 'background:#169B62;border-color:#169B62;color:white;';
+        irelandBtn.innerHTML = '🇮🇪 Ireland <span class="cnt">soon</span>';
+        irelandBtn.addEventListener('click', () => {
+            map.flyTo([53.3498, -8.2439], 7, {duration:2.0});
+            setActiveButton('IRELAND');
+        });
+        cityBar.appendChild(irelandBtn);
+
+        function setActiveButton(regionName) {
+            cityBar.querySelectorAll('.city-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.region === regionName);
+            });
+        }
+    </script>
+</body>
+</html>
